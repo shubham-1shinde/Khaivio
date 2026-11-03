@@ -1,0 +1,80 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+.env
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+# Python / Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Audio / Temporary files
+*.wav
+*.mp3
+*.pcm
+jarvis_tts_output.wav
+
+# Piper / AI Models (Keep models out of Git repo due to size)
+models/
+*.onnx
+*.onnx.json
+
+# IDE / Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs & Local Config
+*.log
+.env
+local_config.json
+
+# System Files
+.DS_Store
+Thumbs.db
+
+jarvis.db
+jarvis.log
+
+Start Jarvis.bat
+
+.env
+
+# Logs
+logs/
+*.log
+
+# memory
+memory/
+*.db
