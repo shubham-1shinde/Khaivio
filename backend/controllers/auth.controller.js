@@ -2,9 +2,9 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { body, validationResult } from 'express-validator';
 import rateLimit from 'express-rate-limit';
-import User from '../models/User.js';
-import OTP from '../models/OTP.js';
-import LoyaltyAccount from '../models/LoyaltyAccount.js';
+import User from '../models/user.model.js';
+import OTP from '../models/otp.model.js';
+import LoyaltyAccount from '../models/loyaltyAccount.model.js';
 import {
   generateOTP,
   hashOTP,

@@ -6,10 +6,10 @@ import {
   adminLogin,
   refresh,
   logout
-} from '../controllers/authController.js';
+} from '../controllers/auth.controller.js';
 
-import { authenticate } from '../middleware/auth.js';
-import User from '../models/User.js';
+import { authenticate } from '../middleware/auth.middleware.js';
+import User from '../models/user.model.js';
 
 const router = Router();
 

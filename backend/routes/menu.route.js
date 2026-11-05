@@ -8,8 +8,8 @@ import {
   deleteMenuItem,
   toggleOutletAvailability,
   getAllMenuItemsAdmin,
-} from '../controllers/menuController.js';
-import { authenticate, authorize } from '../middleware/auth.js';
+} from '../controllers/menu.controller.js';
+import { authenticate, authorize } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 

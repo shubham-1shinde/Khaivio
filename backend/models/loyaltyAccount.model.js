@@ -1,6 +1,4 @@
-'use strict';
-
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const loyaltyTransactionSchema = new mongoose.Schema(
   {
@@ -24,7 +22,6 @@ const loyaltyAccountSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// 1 point per ₹10 spent | 1 point = ₹0.25 | min 40 points to redeem
 loyaltyAccountSchema.statics.EARN_RATE = 10; // ₹ per point
 loyaltyAccountSchema.statics.REDEEM_RATE = 0.25; // ₹ per point
 loyaltyAccountSchema.statics.MIN_REDEEM = 40; // points
@@ -44,4 +41,4 @@ loyaltyAccountSchema.methods.redeemPoints = async function (points, orderId, des
   return this.save();
 };
 
-module.exports = mongoose.model('LoyaltyAccount', loyaltyAccountSchema);
+export default mongoose.model('LoyaltyAccount', loyaltyAccountSchema);

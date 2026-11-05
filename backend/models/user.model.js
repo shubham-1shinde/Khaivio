@@ -1,6 +1,4 @@
-'use strict';
-
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema(
   {
@@ -31,4 +29,4 @@ const userSchema = new mongoose.Schema(
 userSchema.index({ mobile: 1 });
 userSchema.index({ role: 1 });
 
-module.exports = mongoose.model('User', userSchema);
+export default mongoose.model('User', userSchema);

@@ -1,6 +1,6 @@
 import { body, query, param, validationResult } from 'express-validator';
-import MenuItem from '../models/MenuItem.js';
-import Outlet from '../models/Outlet.js';
+import MenuItem from '../models/menuItem.model.js';
+import Outlet from '../models/outlet.model.js';
 
 const validateMenuItem = [
   body('name').trim().notEmpty().withMessage('Name required').isLength({ max: 100 }),

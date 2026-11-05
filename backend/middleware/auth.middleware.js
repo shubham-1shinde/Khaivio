@@ -1,7 +1,5 @@
-'use strict';
-
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+import jwt from 'jsonwebtoken';
+import User from '../models/user.model.js';
 
 const authenticate = async (req, res, next) => {
   try {
@@ -69,4 +67,4 @@ const optionalAuth = async (req, _res, next) => {
   }
 };
 
-module.exports = { authenticate, authorize, optionalAuth };
+export { authenticate, authorize, optionalAuth };

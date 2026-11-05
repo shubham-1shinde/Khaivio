@@ -1,6 +1,4 @@
-'use strict';
-
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const operatingHoursSchema = new mongoose.Schema(
   {
@@ -36,4 +34,4 @@ const outletSchema = new mongoose.Schema(
 
 outletSchema.index({ 'coordinates.lat': 1, 'coordinates.lng': 1 });
 
-module.exports = mongoose.model('Outlet', outletSchema);
+export default mongoose.model('Outlet', outletSchema);

@@ -1,6 +1,4 @@
-'use strict';
-
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const otpSchema = new mongoose.Schema(
   {
@@ -27,4 +25,4 @@ otpSchema.methods.canResend = function () {
   return Date.now() - this.lastSentAt.getTime() >= cooldown;
 };
 
-module.exports = mongoose.model('OTP', otpSchema);
+export default mongoose.model('OTP', otpSchema);

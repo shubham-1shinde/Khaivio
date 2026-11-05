@@ -1,6 +1,4 @@
-'use strict';
-
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const portionOptionSchema = new mongoose.Schema(
   { name: String, price: Number },
@@ -53,4 +51,4 @@ menuItemSchema.index({ isVeg: 1 });
 menuItemSchema.index({ outlets: 1 });
 menuItemSchema.index({ name: 'text', description: 'text', tags: 'text' });
 
-module.exports = mongoose.model('MenuItem', menuItemSchema);
+export default mongoose.model('MenuItem', menuItemSchema);
