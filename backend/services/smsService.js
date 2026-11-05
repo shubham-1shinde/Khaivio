@@ -1,42 +1,27 @@
 import axios from 'axios';
 import bcrypt from 'bcryptjs';
 
-/**
- * Generate a cryptographically random 6-digit OTP.
- */
 const generateOTP = () => {
   return String(Math.floor(100000 + Math.random() * 900000));
 };
 
-/**
- * Hash an OTP using bcrypt.
- */
 const hashOTP = async (otp) => {
   const rounds = parseInt(process.env.BCRYPT_ROUNDS || '10', 10);
   return bcrypt.hash(otp, rounds);
 };
 
-/**
- * Compare plain OTP with hashed version.
- */
 const verifyOTP = async (plain, hashed) => {
   return bcrypt.compare(plain, hashed);
 };
 
-/**
- * Send OTP via Fast2SMS (or mock in development).
- * Returns { success, messageId? }
- */
 const sendOTP = async (mobile, otp) => {
   const isMock = process.env.SMS_MOCK_MODE === 'true' || process.env.NODE_ENV !== 'production';
 
   if (isMock) {
-    // Log OTP to console for development convenience
     console.log(`\n📱 [SMS MOCK] Mobile: ${mobile} | OTP: ${otp}\n`);
     return { success: true, messageId: `MOCK-${Date.now()}`, mock: true };
   }
 
-  // Production: Fast2SMS
   try {
     const response = await axios.post(
       'https://www.fast2sms.com/dev/bulkV2',
@@ -62,7 +47,6 @@ const sendOTP = async (mobile, otp) => {
     return { success: false, error: response.data?.message || 'SMS delivery failed' };
   } catch (err) {
     console.error('Fast2SMS request error:', err.message);
-    // Fail gracefully — don't block OTP flow if SMS fails
     return { success: false, error: err.message };
   }
 };
