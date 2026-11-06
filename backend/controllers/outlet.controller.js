@@ -1,0 +1,126 @@
+import Outlet from '../models/Outlet.js';
+import Order from '../models/Order.js';
+
+/**
+ * GET /api/outlets
+ */
+const getOutlets = async (req, res, next) => {
+  try {
+    const outlets = await Outlet.find({ isActive: true }).sort({ name: 1 }).lean();
+    return res.json({ success: true, data: outlets });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/outlets/:id
+ */
+const getOutlet = async (req, res, next) => {
+  try {
+    const outlet = await Outlet.findById(req.params.id).lean();
+    if (!outlet) return res.status(404).json({ success: false, message: 'Outlet not found' });
+    return res.json({ success: true, data: outlet });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/outlets/nearest?lat=&lng=
+ * Find nearest active outlet within delivery radius.
+ */
+const getNearestOutlet = async (req, res, next) => {
+  try {
+    const { lat, lng } = req.query;
+    if (!lat || !lng) {
+      return res.status(400).json({ success: false, message: 'lat and lng required' });
+    }
+
+    const userLat = parseFloat(lat);
+    const userLng = parseFloat(lng);
+
+    const outlets = await Outlet.find({ isActive: true }).lean();
+
+    // Haversine distance
+    const withDistance = outlets
+      .map((o) => {
+        if (!o.coordinates?.lat || !o.coordinates?.lng) return null;
+        const R = 6371;
+        const dLat = ((o.coordinates.lat - userLat) * Math.PI) / 180;
+        const dLng = ((o.coordinates.lng - userLng) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos((userLat * Math.PI) / 180) *
+            Math.cos((o.coordinates.lat * Math.PI) / 180) *
+            Math.sin(dLng / 2) ** 2;
+        const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return { ...o, distanceKm: Math.round(dist * 10) / 10 };
+      })
+      .filter((o) => o && o.distanceKm <= o.deliveryRadius)
+      .sort((a, b) => a.distanceKm - b.distanceKm);
+
+    return res.json({ success: true, data: withDistance });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/outlets/admin/dashboard
+ */
+const getDashboard = async (req, res, next) => {
+  try {
+    const { outletId, days = 7 } = req.query;
+    const since = new Date(Date.now() - parseInt(days, 10) * 24 * 60 * 60 * 1000);
+
+    const filter = { placedAt: { $gte: since } };
+    if (outletId) filter.outlet = outletId;
+
+    const [
+      totalOrders,
+      cancelledOrders,
+      revenueAgg,
+      avgPrepAgg,
+      statusBreakdown,
+    ] = await Promise.all([
+      Order.countDocuments(filter),
+      Order.countDocuments({ ...filter, status: 'cancelled' }),
+      Order.aggregate([
+        { $match: { ...filter, status: { $nin: ['cancelled'] } } },
+        { $group: { _id: null, total: { $sum: '$total' } } },
+      ]),
+      Order.aggregate([
+        { $match: { ...filter, actualReadyAt: { $exists: true }, status: 'ready' } },
+        {
+          $project: {
+            prepMinutes: {
+              $divide: [{ $subtract: ['$actualReadyAt', '$placedAt'] }, 60000],
+            },
+          },
+        },
+        { $group: { _id: null, avg: { $avg: '$prepMinutes' } } },
+      ]),
+      Order.aggregate([
+        { $match: filter },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+      ]),
+    ]);
+
+    return res.json({
+      success: true,
+      data: {
+        totalOrders,
+        cancelledOrders,
+        totalRevenue: revenueAgg[0]?.total || 0,
+        avgPrepTime: Math.round(avgPrepAgg[0]?.avg || 0),
+        statusBreakdown: Object.fromEntries(statusBreakdown.map((s) => [s._id, s.count])),
+        period: `${days} days`,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export { getOutlets, getOutlet, getNearestOutlet, getDashboard };
