@@ -11,6 +11,7 @@ import authRoutes from './routes/auth.route.js';
 import menuRoutes from './routes/menu.route.js';
 import orderRoutes from './routes/order.route.js';
 import outletRoutes from './routes/outlet.route.js';
+import adminRoutes from './routes/admin.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -50,6 +51,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/outlets', outletRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({

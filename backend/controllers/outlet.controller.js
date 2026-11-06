@@ -1,9 +1,6 @@
-import Outlet from '../models/Outlet.js';
-import Order from '../models/Order.js';
+import Outlet from '../models/outlet.model.js';
+import Order from '../models/order.model.js';
 
-/**
- * GET /api/outlets
- */
 const getOutlets = async (req, res, next) => {
   try {
     const outlets = await Outlet.find({ isActive: true }).sort({ name: 1 }).lean();
@@ -13,9 +10,6 @@ const getOutlets = async (req, res, next) => {
   }
 };
 
-/**
- * GET /api/outlets/:id
- */
 const getOutlet = async (req, res, next) => {
   try {
     const outlet = await Outlet.findById(req.params.id).lean();
@@ -26,10 +20,6 @@ const getOutlet = async (req, res, next) => {
   }
 };
 
-/**
- * GET /api/outlets/nearest?lat=&lng=
- * Find nearest active outlet within delivery radius.
- */
 const getNearestOutlet = async (req, res, next) => {
   try {
     const { lat, lng } = req.query;
@@ -42,7 +32,6 @@ const getNearestOutlet = async (req, res, next) => {
 
     const outlets = await Outlet.find({ isActive: true }).lean();
 
-    // Haversine distance
     const withDistance = outlets
       .map((o) => {
         if (!o.coordinates?.lat || !o.coordinates?.lng) return null;
@@ -66,9 +55,6 @@ const getNearestOutlet = async (req, res, next) => {
   }
 };
 
-/**
- * GET /api/outlets/admin/dashboard
- */
 const getDashboard = async (req, res, next) => {
   try {
     const { outletId, days = 7 } = req.query;

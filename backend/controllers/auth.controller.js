@@ -10,7 +10,7 @@ import {
   hashOTP,
   verifyOTP,
   sendOTP
-} from '../services/smsService.js';
+} from '../services/sms.service.js';
 
 const signTokens = (userId) => {
   const accessToken = jwt.sign({ id: userId }, process.env.JWT_SECRET, {
