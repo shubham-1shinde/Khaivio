@@ -1,5 +1,4 @@
-import { Router } from 'express';
-
+import express from 'express';
 import {
   sendOTPHandler,
   verifyOTPHandler,
@@ -11,14 +10,17 @@ import {
 import { authenticate } from '../middleware/auth.middleware.js';
 import User from '../models/user.model.js';
 
-const router = Router();
+const router = express.Router();
 
 router.post('/send-otp', sendOTPHandler);
 router.post('/verify-otp', verifyOTPHandler);
+
 router.post('/admin/login', adminLogin);
+
 router.post('/refresh', refresh);
 router.post('/logout', authenticate, logout);
 
+// GET /api/auth/me — returns current user from JWT
 router.get('/me', authenticate, async (req, res) => {
     try {
         const user = await User.findById(req.user._id)
@@ -29,19 +31,18 @@ router.get('/me', authenticate, async (req, res) => {
         if (!user) {
             return res.status(404).json({
                 success: false,
-                message: 'User not found'
+                message: 'User not found',
             });
         }
 
         return res.json({
             success: true,
-            user
+            user,
         });
-
     } catch (err) {
         return res.status(500).json({
             success: false,
-            message: err.message
+            message: err.message,
         });
     }
 });

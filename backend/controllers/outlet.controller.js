@@ -55,6 +55,124 @@ const getNearestOutlet = async (req, res, next) => {
   }
 };
 
+const isValidCoordinates = (lat, lng) =>
+  Number.isFinite(lat) &&
+  Number.isFinite(lng) &&
+  lat >= -90 &&
+  lat <= 90 &&
+  lng >= -180 &&
+  lng <= 180;
+
+const getDistanceKm = (lat1, lng1, lat2, lng2) => {
+  const toRad = (degrees) => (degrees * Math.PI) / 180;
+
+  const R = 6371;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLng / 2) ** 2;
+
+  const safeA = Math.min(1, Math.max(0, a));
+
+  return 2 * R * Math.atan2(
+    Math.sqrt(safeA),
+    Math.sqrt(1 - safeA)
+  );
+};
+
+const getNearbyOutlets = async (req, res, next) => {
+  try {
+    const lat = Number(req.query.lat);
+    const lng = Number(req.query.lng);
+
+    if (
+      req.query.lat === undefined ||
+      req.query.lng === undefined ||
+      !isValidCoordinates(lat, lng)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid latitude and longitude are required',
+      });
+    }
+
+    const outlets = await Outlet.find({ isActive: true })
+      .sort({ name: 1 })
+      .lean();
+
+    const deliverableOutlets = [];
+    const nonDeliverableOutlets = [];
+    const unknownOutlets = [];
+
+    for (const outlet of outlets) {
+      const outletLat = outlet.coordinates?.lat;
+      const outletLng = outlet.coordinates?.lng;
+
+      if (!isValidCoordinates(outletLat, outletLng)) {
+        unknownOutlets.push({
+          ...outlet,
+          distanceKm: null,
+          isDeliverable: null,
+          deliveryStatus: 'location_unavailable',
+        });
+        continue;
+      }
+
+      const exactDistance = getDistanceKm(
+        lat,
+        lng,
+        outletLat,
+        outletLng
+      );
+
+      const distanceKm = Math.round(exactDistance * 10) / 10;
+
+      const isDeliverable =
+        exactDistance <= outlet.deliveryRadius;
+
+      const outletWithDistance = {
+        ...outlet,
+        distanceKm,
+        isDeliverable,
+        deliveryStatus: isDeliverable
+          ? 'deliverable'
+          : 'not_deliverable',
+      };
+
+      if (isDeliverable) {
+        deliverableOutlets.push(outletWithDistance);
+      } else {
+        nonDeliverableOutlets.push(outletWithDistance);
+      }
+    }
+
+    deliverableOutlets.sort(
+      (a, b) => a.distanceKm - b.distanceKm
+    );
+
+    nonDeliverableOutlets.sort(
+      (a, b) => a.distanceKm - b.distanceKm
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        deliverableOutlets,
+        nonDeliverableOutlets,
+        unknownOutlets,
+        nearestOutlet: deliverableOutlets[0] || null,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const getDashboard = async (req, res, next) => {
   try {
     const { outletId, days = 7 } = req.query;
@@ -109,4 +227,4 @@ const getDashboard = async (req, res, next) => {
   }
 };
 
-export { getOutlets, getOutlet, getNearestOutlet, getDashboard };
+export { getOutlets, getOutlet, getNearestOutlet, getNearbyOutlets, getDashboard };

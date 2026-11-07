@@ -13,15 +13,40 @@ import {
 } from '../services/sms.service.js';
 
 const signTokens = (userId) => {
-  const accessToken = jwt.sign({ id: userId }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '15m',
-  });
+  const accessToken = jwt.sign(
+    { id: userId },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: process.env.JWT_EXPIRES_IN || '15m',
+    }
+  );
 
-  const refreshToken = jwt.sign({ id: userId }, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
-  });
+  const refreshToken = jwt.sign(
+    { id: userId },
+    process.env.JWT_REFRESH_SECRET,
+    {
+      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+    }
+  );
 
   return { accessToken, refreshToken };
+};
+
+const checkProfileComplete = (user) => {
+  const { name, address } = user;
+
+  return Boolean(
+    name?.trim() &&
+    address?.area?.trim() &&
+    address?.city?.trim() &&
+    /^\d{6}$/.test(address?.pincode || '') &&
+    Number.isFinite(address?.coordinates?.lat) &&
+    Number.isFinite(address?.coordinates?.lng) &&
+    address.coordinates.lat >= -90 &&
+    address.coordinates.lat <= 90 &&
+    address.coordinates.lng >= -180 &&
+    address.coordinates.lng <= 180
+  );
 };
 
 const otpLimiter = rateLimit({
@@ -30,7 +55,7 @@ const otpLimiter = rateLimit({
   keyGenerator: (req) => req.ip + ':' + (req.body?.mobile || ''),
   message: {
     success: false,
-    message: 'Too many OTP requests. Please wait before trying again.'
+    message: 'Too many OTP requests. Please wait before trying again.',
   },
 });
 
@@ -53,12 +78,22 @@ const validateVerifyOTP = [
     .isNumeric()
     .withMessage('OTP must be 6 digits'),
 
-  body('name').optional().trim().isLength({ max: 100 }),
+  body('name')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Name cannot exceed 100 characters'),
 ];
 
 const validateAdminLogin = [
-  body('email').trim().isEmail().withMessage('Valid email required'),
-  body('password').notEmpty().withMessage('Password required'),
+  body('email')
+    .trim()
+    .isEmail()
+    .withMessage('Valid email required'),
+
+  body('password')
+    .notEmpty()
+    .withMessage('Password required'),
 ];
 
 const sendOTPHandler = [
@@ -72,7 +107,7 @@ const sendOTPHandler = [
       if (!errors.isEmpty()) {
         return res.status(400).json({
           success: false,
-          errors: errors.array()
+          errors: errors.array(),
         });
       }
 
@@ -91,7 +126,10 @@ const sendOTPHandler = [
         if (!existingOTP.canResend()) {
           const waitSec = Math.ceil(
             (
-              parseInt(process.env.OTP_RESEND_COOLDOWN_SECONDS || '60', 10) * 1000 -
+              parseInt(
+                process.env.OTP_RESEND_COOLDOWN_SECONDS || '60',
+                10
+              ) * 1000 -
               (Date.now() - existingOTP.lastSentAt.getTime())
             ) / 1000
           );
@@ -109,7 +147,6 @@ const sendOTPHandler = [
         existingOTP.attempts = 0;
 
         otpDoc = await existingOTP.save();
-
       } else {
         otpPlain = generateOTP();
 
@@ -140,9 +177,9 @@ const sendOTPHandler = [
         success: true,
         message: 'OTP sent successfully',
         ...(smsResult.mock && { dev_otp: otpPlain }),
-        expiresIn: parseInt(process.env.OTP_EXPIRY_MINUTES || '10', 10) * 60,
+        expiresIn:
+          parseInt(process.env.OTP_EXPIRY_MINUTES || '10', 10) * 60,
       });
-
     } catch (err) {
       next(err);
     }
@@ -159,7 +196,7 @@ const verifyOTPHandler = [
       if (!errors.isEmpty()) {
         return res.status(400).json({
           success: false,
-          errors: errors.array()
+          errors: errors.array(),
         });
       }
 
@@ -216,20 +253,31 @@ const verifyOTPHandler = [
       if (!user) {
         user = await User.create({
           mobile,
-          name: name || null,
+          name: name?.trim() || undefined,
           role: 'customer',
           marketingOptIn: !!marketingOptIn,
+          isProfileComplete: false,
         });
 
-        await LoyaltyAccount.create({ user: user._id });
-
+        await LoyaltyAccount.create({
+          user: user._id,
+        });
       } else {
-        if (name && !user.name) user.name = name;
+        if (name?.trim() && !user.name) {
+          user.name = name.trim();
+        }
 
         if (marketingOptIn !== undefined) {
           user.marketingOptIn = !!marketingOptIn;
         }
       }
+
+      const isProfileComplete =
+        user.role === 'customer'
+          ? checkProfileComplete(user)
+          : true;
+
+      user.isProfileComplete = isProfileComplete;
 
       const { accessToken, refreshToken } = signTokens(user._id);
 
@@ -238,19 +286,25 @@ const verifyOTPHandler = [
 
       return res.json({
         success: true,
-        message: isNewUser ? 'Account created successfully' : 'Login successful',
+        message: isNewUser
+          ? 'Account created successfully'
+          : 'Login successful',
         isNewUser,
+        requiresProfileSetup: user.role === 'customer' && !isProfileComplete,
         accessToken,
         refreshToken,
         user: {
           id: user._id,
           mobile: user.mobile,
           name: user.name,
+          email: user.email,
           role: user.role,
+          address: user.address,
+          isProfileComplete: user.isProfileComplete,
           loyaltyPoints: user.loyaltyPoints,
+          marketingOptIn: user.marketingOptIn,
         },
       });
-
     } catch (err) {
       next(err);
     }
@@ -267,35 +321,42 @@ const adminLogin = [
       if (!errors.isEmpty()) {
         return res.status(400).json({
           success: false,
-          errors: errors.array()
+          errors: errors.array(),
         });
       }
 
       const { email, password } = req.body;
 
-      const user = await User.findOne({email, role: { $in: ['admin', 'kitchen'] }})
+      const user = await User.findOne({
+        email,
+        role: { $in: ['admin', 'kitchen', 'catering_manager'] },
+      })
         .select('+adminPassword +refreshToken')
         .populate('outlet', 'name slug _id');
 
       if (!user || !user.adminPassword) {
         return res.status(401).json({
           success: false,
-          message: 'Invalid credentials'
+          message: 'Invalid credentials',
         });
       }
 
-      const match = await bcrypt.compare(password, user.adminPassword);
+      const match = await bcrypt.compare(
+        password,
+        user.adminPassword
+      );
 
       if (!match) {
         return res.status(401).json({
           success: false,
-          message: 'Invalid credentials'
+          message: 'Invalid credentials',
         });
       }
 
       const { accessToken, refreshToken } = signTokens(user._id);
 
       user.refreshToken = refreshToken;
+
       await user.save();
 
       return res.json({
@@ -303,6 +364,7 @@ const adminLogin = [
         message: 'Login successful',
         accessToken,
         refreshToken,
+
         user: {
           id: user._id,
           name: user.name,
@@ -311,7 +373,6 @@ const adminLogin = [
           outlet: user.outlet,
         },
       });
-
     } catch (err) {
       next(err);
     }
@@ -325,7 +386,7 @@ const refresh = async (req, res, next) => {
     if (!refreshToken) {
       return res.status(400).json({
         success: false,
-        message: 'Refresh token required'
+        message: 'Refresh token required',
       });
     }
 
@@ -336,24 +397,25 @@ const refresh = async (req, res, next) => {
         refreshToken,
         process.env.JWT_REFRESH_SECRET
       );
-
     } catch {
       return res.status(401).json({
         success: false,
-        message: 'Invalid or expired refresh token'
+        message: 'Invalid or expired refresh token',
       });
     }
 
-    const user = await User.findById(decoded.id).select('+refreshToken');
+    const user = await User.findById(decoded.id)
+      .select('+refreshToken');
 
     if (!user || user.refreshToken !== refreshToken) {
       return res.status(401).json({
         success: false,
-        message: 'Refresh token revoked'
+        message: 'Refresh token revoked',
       });
     }
 
-    const { accessToken, refreshToken: newRefresh } = signTokens(user._id);
+    const { accessToken, refreshToken: newRefresh } =
+      signTokens(user._id);
 
     user.refreshToken = newRefresh;
     await user.save();
@@ -361,9 +423,8 @@ const refresh = async (req, res, next) => {
     return res.json({
       success: true,
       accessToken,
-      refreshToken: newRefresh
+      refreshToken: newRefresh,
     });
-
   } catch (err) {
     next(err);
   }
@@ -372,16 +433,16 @@ const refresh = async (req, res, next) => {
 const logout = async (req, res, next) => {
   try {
     if (req.user) {
-      await User.findByIdAndUpdate(req.user._id, {
-        refreshToken: null
-      });
+      await User.findByIdAndUpdate(
+        req.user._id,
+        { refreshToken: null }
+      );
     }
 
     return res.json({
       success: true,
-      message: 'Logged out'
+      message: 'Logged out',
     });
-
   } catch (err) {
     next(err);
   }

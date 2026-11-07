@@ -20,8 +20,17 @@ const initSocket = (server) => {
       console.log(`Kitchen socket ${socket.id} joined outlet:${outletId}`);
     });
 
+    socket.on('join-catering', (outletId) => {
+      socket.join(`outlet:${outletId}`);
+      console.log(`Catering socket ${socket.id} joined outlet:${outletId}`);
+    });
+
     socket.on('join-order', (orderId) => {
       socket.join(`order:${orderId}`);
+    });
+
+    socket.on('join-customer', (customerId) => {
+      socket.join(`customer:${customerId}`);
     });
 
     socket.on('disconnect', () => {

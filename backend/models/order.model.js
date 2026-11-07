@@ -72,7 +72,6 @@ orderSchema.index({ outlet: 1, status: 1, placedAt: -1 });
 orderSchema.index({ status: 1 });
 orderSchema.index({ isLate: 1, alertSent: 1 });
 
-// Auto-generate orderId
 orderSchema.pre('validate', async function (next) {
   if (!this.orderId) {
     let unique = false;
